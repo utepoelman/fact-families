@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nugget's Fact Families</title>
+    <style>
+        :root {
+            /* Orange/Yellow Theme for Arithmetic */
+            --primary-color: #e67e22; 
+            --secondary-color: #f39c12;
+            --bg-color: #fcf3cf; /* Light yellow bg */
+            --card-back-bg: #f5b041;
+            --text-color: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        /* --- Layout --- */
+        header, #nugget-area, #start-screen, #game-controls, #cert-buttons-container {
+            box-sizing: border-box;
+        }
+
+        header { text-align: center; padding: 20px; }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 95%;
+            max-width: 1200px;
+            position: relative;
+            padding-bottom: 50px;
+        }
+
+        /* --- Nugget Area (Top) --- */
+        #nugget-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        #nugget-top-img {
+            width: 150px;
+            height: auto;
+            transition: transform 0.3s ease;
+        }
+        #nugget-top-img:hover { transform: scale(1.05) rotate(5deg); }
+
+        .speech-bubble {
+            background: white;
+            border-radius: 20px;
+            padding: 15px 25px;
+            margin-left: 20px;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            font-size: 1.1em;
+            border: 2px solid var(--primary-color);
+        }
+        .speech-bubble:after {
+            content: ''; position: absolute; left: 0; top: 50%; width: 0; height: 0;
+            border: 15px solid transparent; border-right-color: var(--primary-color);
+            border-left: 0; margin-top: -15px; margin-left: -15px;
+        }
+
+        /* --- Menu & Buttons --- */
+        #start-screen {
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+            background: white; padding: 30px; border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .level-selector {
+            display: flex; gap: 10px; margin-bottom: 15px;
+            flex-wrap: wrap; justify-content: center;
+        }
+
+        .btn {
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 12px 25px; margin: 5px; border-radius: 8px; font-size: 1.1rem;
+            cursor: pointer; transition: background 0.2s; min-width: 200px;
+        }
+        .btn:hover { filter: brightness(90%); }
+        .btn.secondary { background-color: #d35400; color: white; } 
+        .btn.outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+        .btn.outline:hover { background: #fdebd0; }
+        
+        .btn-group-label { font-weight: bold; margin-top: 10px; display: block; }
+        .level-btn-inactive { background-color: #bdc3c7 !important; color: #2d3436 !important; }
+
+        .hidden { display: none !important; }
+
+        /* --- In-Game Controls --- */
+        #game-controls {
+            display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 20px; gap: 10px; width: 100%;
+        }
+        #stats-bar {
+            background: var(--primary-color); color: white; padding: 10px 20px;
+            border-radius: 20px; font-weight: bold; font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .settings-slider-container {
+            background: white; padding: 10px 20px; border-radius: 10px;
+            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* --- Game Board & Cards --- */
+        #board {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px;
+            perspective: 1000px; margin-bottom: 40px;
+        }
+        @media (max-width: 900px) { #board { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 600px) { #board { grid-template-columns: repeat(3, 1fr); } }
+
+        .card {
+            background-color: transparent; width: 140px; height: 140px; 
+            cursor: pointer; position: relative; transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .card.flipped { transform: rotateY(180deg); }
+        .card.matched { visibility: hidden; opacity: 0; transition: visibility 0s 0.5s, opacity 0.5s linear; cursor: default; }
+
+        /* Animations */
+        @keyframes shake { 0%, 100% { transform: translateX(0) rotateY(180deg); } 25% { transform: translateX(-10px) rotateY(180deg); } 75% { transform: translateX(10px) rotateY(180deg); } }
+        @keyframes shake-faceup { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        .card.shaking { animation: shake 0.5s; }
+        .card.shaking-faceup { animation: shake-faceup 0.5s; }
+
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            -webkit-backface-visibility: hidden; backface-visibility: hidden;
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid #ddd;
+        }
+        .card-front { background-color: white; transform: rotateY(180deg); color: #2d3436; overflow: hidden; padding: 5px; box-sizing: border-box; }
+        .open-mode .card-front { transform: rotateY(0deg); }
+        .open-mode .card-back { display: none; }
+        .card.selected .card-front { border: 4px solid var(--primary-color); background-color: #fdebd0; }
+        .card-back { background-color: var(--secondary-color); transform: rotateY(0deg); }
+        .card-back img { width: 80%; height: auto; opacity: 0.9; }
+
+        /* --- Content Formatting --- */
+        .fact-text { 
+            /* Changed from Verdana to Segoe UI/Arial for a slimmer profile */
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            font-size: 1.6rem; /* Slightly reduced from 1.8rem */
+            font-weight: bold; 
+            color: #2c3e50;
+            text-align: center;
+            white-space: nowrap; /* Forces text to stay on one line */
+        }
+        
+        /* --- Winner Modal --- */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 15px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 400px; width: 90%;
+            border: 4px solid var(--primary-color);
+        }
+        .modal-input { padding: 10px; font-size: 1.2rem; width: 80%; margin: 20px 0; border: 2px solid #ccc; border-radius: 5px; }
+
+        /* --- Certificate --- */
+        #certificate-view {
+            text-align: center; background: white; padding: 40px;
+            border: 10px double var(--primary-color); border-radius: 15px;
+            max-width: 700px; width: 100%; box-sizing: border-box;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: auto;
+        }
+        .cert-title { font-family: 'Times New Roman', serif; font-size: 3rem; color: var(--primary-color); margin-bottom: 10px; }
+        .cert-body { font-size: 1.3rem; margin: 30px 0; line-height: 1.6; }
+        .cert-name-display {
+            font-family: 'Brush Script MT', cursive; font-size: 3rem; color: #2d3436;
+            border-bottom: 2px solid #2d3436; padding: 0 20px; display: inline-block; margin-bottom: 10px;
+        }
+        .cert-signature-area {
+            display: flex; align-items: center; justify-content: center; gap: 30px; margin-top: 40px;
+        }
+        .cert-nugget-stamp { width: 100px; height: auto; transform: rotate(-10deg); opacity: 0.9; }
+        .paw-print { color: var(--primary-color); font-size: 3rem; transform: rotate(-15deg); }
+        .cert-meta { font-size: 0.9rem; color: #636e72; margin-top: 30px; border-top: 1px solid #dfe6e9; padding-top: 10px; }
+
+        /* Buttons below certificate */
+        #cert-buttons-container {
+            display: flex; justify-content: center; gap: 20px; margin-top: 30px;
+        }
+
+        /* --- PRINT STYLES --- */
+        #print-layout { display: none; }
+
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            html, body { margin: 0; padding: 0; width: 100%; background: white; }
+            header, #nugget-area, #start-screen, #game-controls, #board, #modal-overlay, #cert-buttons-container { display: none !important; }
+            #game-container { display: block; width: 100%; max-width: none; margin: 0; }
+            
+            #certificate-view:not(.hidden) {
+                display: block !important; position: absolute; left: 0; top: 0; width: 100%;
+                border: 5px solid var(--primary-color);
+            }
+
+            #print-layout.visible-print {
+                display: block !important; position: absolute; top: 0; left: 0; width: 100%;
+            }
+            
+            .print-page {
+                display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr);
+                gap: 10px; width: 100%; height: 98vh; page-break-after: always; padding: 20px; box-sizing: border-box;
+            }
+            
+            .print-card {
+                display: flex; align-items: center; justify-content: center;
+                height: 100%; width: 100%; border: 1px dashed #ccc;
+            }
+            .print-card .card-face {
+                position: relative; transform: none; box-shadow: none;
+                border: 2px solid #333; width: 90%; height: 90%;
+            }
+            .print-card .card-back { background-color: var(--secondary-color) !important; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="no-print">
+        <h1>Nugget's Fact Families</h1>
+    </header>
+
+    <div id="game-container">
+        
+        <div id="nugget-area" class="no-print">
+            <img src="Nugget.png" alt="Nugget" id="nugget-top-img" onerror="this.src='https://api.dicebear.com/7.x/thumbs/svg?seed=Nugget&backgroundColor=f39c12'">
+            <div class="speech-bubble" id="nugget-speech">
+                Hi! I'm Nugget. Match the expressions from the same Fact Family!
+            </div>
+        </div>
+
+        <div id="start-screen" class="no-print">
+            <span class="btn-group-label">Step 1: Choose Difficulty</span>
+            <div class="level-selector">
+                <button class="btn level-btn-inactive" id="btn-lvl-1" onclick="selectLevel(1)">Level 1<br><small>Add/Sub (Sum &#8804; 20)</small></button>
+                <button class="btn level-btn-inactive" id="btn-lvl-2" onclick="selectLevel(2)">Level 2<br><small>Mult/Div (Factors &#8804; 12)</small></button>
+                <button class="btn level-btn-inactive" id="btn-lvl-3" onclick="selectLevel(3)">Level 3<br><small>Mixed Operations</small></button>
+            </div>
+
+            <div id="mode-buttons" class="hidden">
+                <span class="btn-group-label">Step 2: Choose Game Mode</span>
+                <button class="btn" onclick="startGame('open')">Mode 1: Mix & Match (Face Up)</button>
+                <button class="btn" onclick="startGame('memory')">Mode 2: Memory Game (Face Down)</button>
+                <div style="height: 10px;"></div>
+                <button class="btn outline" onclick="printCardSet()">Teacher: Print Card Set</button>
+            </div>
+        </div>
+
+        <div id="game-controls" class="hidden no-print">
+            <div id="mode2-settings" class="settings-slider-container hidden">
+                <label for="time-slider"><strong>Preview Time:</strong> <span id="time-display">2.0</span>s</label>
+                <input type="range" id="time-slider" min="500" max="5000" step="500" value="2000" oninput="updateTimeDisplay()">
+            </div>
+            <div id="stats-bar" class="hidden">
+                <span id="stats-text">Attempts: 0</span>
+            </div>
+        </div>
+
+        <div id="board" class="hidden no-print"></div>
+
+        <div id="modal-overlay" class="hidden no-print">
+            <div class="modal-content">
+                <h2>Congratulations!</h2>
+                <p>You connected all the fact families!</p>
+                <p>Please enter your name for the certificate:</p>
+                <input type="text" id="winner-name-input" class="modal-input" placeholder="Your Name" maxlength="20">
+                <br>
+                <button class="btn" onclick="claimCertificate()">Claim Certificate</button>
+            </div>
+        </div>
+
+        <div id="certificate-view" class="hidden">
+            <div class="cert-title">Certificate of Achievement</div>
+            <div class="cert-body">
+                This certifies that<br><br>
+                <div class="cert-name-display" id="final-cert-name">Student Name</div>
+                <br><br>
+                has successfully mastered<br>
+                <strong><span id="cert-game-name">Nugget's Fact Families</span></strong><br>
+                <span id="cert-level-desc" style="font-size: 0.9em; font-style: italic;">(Description)</span>
+            </div>
+            
+            <div class="cert-signature-area">
+                <img src="Nugget.png" alt="Nugget Stamp" class="cert-nugget-stamp">
+                <div>
+                    <div class="paw-print">🐾</div>
+                    <div style="font-family: cursive; margin-top: 5px;">Nugget Approved!</div>
+                </div>
+            </div>
+
+            <div class="cert-meta">
+                Completed on: <span id="cert-date"></span> <br>
+                <span id="cert-extra-info"></span>
+            </div>
+        </div>
+
+        <div id="cert-buttons-container" class="hidden no-print">
+            <button class="btn" onclick="location.reload()">Play Again</button>
+            <button class="btn secondary" onclick="window.print()">Print Certificate</button>
+        </div>
+
+    </div>
+
+    <div id="print-layout"></div>
+
+<script>
+    // --- Configuration & State ---
+    let previewDuration = 2000;
+    
+    let currentDeck = [];
+    let currentMode = '', selectedCards = [], matchesFound = 0, attempts = 0, mode1StartTime = null, mode1EndTime = null, isProcessing = false;
+    let currentLevel = 1;
+    let totalSetsGame = 6; 
+
+    // --- Data Generators ---
+
+    function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Generate a set of 3 related equations for a specific type
+    function generateFactFamily(type) {
+        // type = 'add' or 'mult'
+        
+        let a, b, c;
+        let equations = [];
+
+        if (type === 'add') {
+            // Rule: Sum <= 20. Include 0. No doubles.
+            a = getRandomInt(0, 19);
+            do {
+                b = getRandomInt(0, 20 - a);
+            } while (a === b);
+
+            c = a + b;
+            
+            // Generate possibilities
+            const addOpts = [`${a} + ${b}`, `${b} + ${a}`];
+            const subOpts = [`${c} - ${a}`, `${c} - ${b}`];
+
+            // Select 1 Addition and 2 Subtractions
+            const selectedAdd = addOpts[Math.floor(Math.random() * addOpts.length)];
+            equations = [selectedAdd, subOpts[0], subOpts[1]];
+
+        } else {
+            // Rule: Factors <= 12. No 0. Include 1. No doubles.
+            a = getRandomInt(1, 12);
+            do {
+                b = getRandomInt(1, 12);
+            } while (a === b);
+
+            c = a * b;
+
+            // Generate possibilities
+            const multOpts = [`${a} × ${b}`, `${b} × ${a}`];
+            const divOpts = [`${c} ÷ ${a}`, `${c} ÷ ${b}`];
+
+            // Select 1 Multiplication and 2 Divisions
+            const selectedMult = multOpts[Math.floor(Math.random() * multOpts.length)];
+            equations = [selectedMult, divOpts[0], divOpts[1]];
+        }
+
+        // Shuffle the 3 equations so the "odd one" (add/mult) isn't always first
+        equations.sort(() => 0.5 - Math.random());
+        return equations;
+    }
+
+    function generateRandomDeck(numSets) {
+        let deck = [];
+        
+        for(let i=0; i<numSets; i++) {
+            const setId = i + 1;
+            let type = 'add';
+            
+            if (currentLevel === 1) type = 'add';
+            else if (currentLevel === 2) type = 'mult';
+            else if (currentLevel === 3) type = (Math.random() < 0.5) ? 'add' : 'mult';
+
+            const triplet = generateFactFamily(type);
+            
+            // Create 3 cards for this set
+            triplet.forEach(eqStr => {
+                deck.push({ id: setId, val: eqStr });
+            });
+        }
+        
+        return { deck: deck, total: numSets };
+    }
+
+    // --- Level Selection ---
+    function selectLevel(lvl) {
+        currentLevel = lvl;
+        
+        // Reset styles
+        [1, 2, 3].forEach(n => {
+            const btn = document.getElementById(`btn-lvl-${n}`);
+            if (n === lvl) {
+                btn.classList.remove('level-btn-inactive');
+                btn.style.backgroundColor = 'var(--primary-color)';
+                btn.style.color = 'white';
+            } else {
+                btn.classList.add('level-btn-inactive');
+                btn.style.backgroundColor = '';
+                btn.style.color = '';
+            }
+        });
+
+        document.getElementById('mode-buttons').classList.remove('hidden');
+    }
+
+    // --- Game Logic ---
+    function updateTimeDisplay() {
+        previewDuration = parseInt(document.getElementById('time-slider').value);
+        document.getElementById('time-display').innerText = (previewDuration / 1000).toFixed(1);
+    }
+
+    function startGame(mode) {
+        currentMode = mode;
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('board').classList.remove('hidden');
+        document.getElementById('game-controls').classList.remove('hidden');
+        attempts = 0; matchesFound = 0;
+        
+        if (mode === 'open') {
+            document.getElementById('board').classList.add('open-mode');
+            document.getElementById('stats-bar').classList.add('hidden'); 
+            document.getElementById('mode2-settings').classList.add('hidden');
+            document.getElementById('nugget-speech').innerText = "Mode 1: Find the 3 expressions from the same family!";
+            mode1StartTime = new Date();
+        } else {
+            document.getElementById('board').classList.remove('open-mode');
+            document.getElementById('stats-bar').classList.remove('hidden');
+            document.getElementById('mode2-settings').classList.remove('hidden');
+            updateStats();
+            document.getElementById('nugget-speech').innerText = "Mode 2: Memory! Flip 3 cards that belong together.";
+        }
+        
+        const result = generateRandomDeck(6); 
+        currentDeck = result.deck.sort(() => 0.5 - Math.random());
+        totalSetsGame = result.total;
+
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+        currentDeck.forEach(data => board.appendChild(createCardElement(data)));
+    }
+
+    function updateStats() { document.getElementById('stats-text').innerText = `Attempts: ${attempts}`; }
+
+    function generateCardContent(c) {
+        const cont = document.createElement('div');
+        cont.style.width = '100%'; cont.style.height = '100%';
+        cont.style.display = 'flex'; cont.style.alignItems = 'center'; cont.style.justifyContent = 'center';
+        cont.innerHTML = `<div class="fact-text">${c.val}</div>`;
+        return cont;
+    }
+
+    function createCardElement(data) {
+        const card = document.createElement('div'); card.className = 'card'; card.dataset.id = data.id;
+        const front = document.createElement('div'); front.className = 'card-face card-front';
+        front.appendChild(generateCardContent(data));
+        const back = document.createElement('div'); back.className = 'card-face card-back';
+        back.innerHTML = `<img src="Nugget.png" onerror="this.src='https://api.dicebear.com/7.x/thumbs/svg?seed=Nugget&backgroundColor=f39c12'">`;
+        card.appendChild(front); card.appendChild(back);
+        card.addEventListener('click', () => handleCardClick(card));
+        return card;
+    }
+
+    function handleCardClick(card) {
+        if (card.classList.contains('matched') || isProcessing) return;
+        if (currentMode === 'open') {
+            if (card.classList.contains('selected')) {
+                card.classList.remove('selected'); selectedCards = selectedCards.filter(c => c !== card); return;
+            }
+            if (selectedCards.length === 0 || card.dataset.id === selectedCards[0].dataset.id) {
+                card.classList.add('selected'); selectedCards.push(card);
+                if (selectedCards.length === 3) handleMatchFound();
+            } else {
+                shakeAndReset(card);
+            }
+        } else {
+            if (card.classList.contains('flipped')) return;
+            card.classList.add('flipped'); selectedCards.push(card);
+            if (selectedCards.length === 3) {
+                isProcessing = true; attempts++; updateStats();
+                const [c1, c2, c3] = selectedCards;
+                if (c1.dataset.id === c2.dataset.id && c2.dataset.id === c3.dataset.id) {
+                    setTimeout(() => { handleMatchFound(); isProcessing = false; }, previewDuration);
+                } else {
+                    setTimeout(() => selectedCards.forEach(c => c.classList.add('shaking')), previewDuration);
+                    setTimeout(() => {
+                        selectedCards.forEach(c => { c.classList.remove('shaking', 'flipped'); });
+                        selectedCards = []; isProcessing = false; 
+                        document.getElementById('nugget-speech').innerText = "Try again!";
+                    }, previewDuration + 600);
+                }
+            }
+        }
+    }
+
+    function shakeAndReset(card) {
+        card.classList.add('selected', 'shaking-faceup'); isProcessing = true;
+        document.getElementById('nugget-speech').innerText = "Oops! Those don't belong to the same family.";
+        setTimeout(() => {
+            card.classList.remove('selected', 'shaking-faceup');
+            document.getElementById('nugget-speech').innerText = "Try again!"; isProcessing = false;
+        }, 600);
+    }
+
+    function handleMatchFound() {
+        selectedCards.forEach(c => { c.classList.remove('selected'); c.classList.add('matched'); });
+        selectedCards = []; matchesFound++;
+        const praises = ["Correct!", "Family Reunited!", "Great Math!", "Nugget approves!"];
+        document.getElementById('nugget-speech').innerText = praises[Math.floor(Math.random() * praises.length)] + ` (${matchesFound}/${totalSetsGame})`;
+        if (matchesFound === totalSetsGame) {
+            if (currentMode === 'open') mode1EndTime = new Date();
+            setTimeout(showWinnerModal, 1000);
+        }
+    }
+
+    // --- Modal & Certificate ---
+    function showWinnerModal() {
+        document.getElementById('nugget-speech').innerText = "You found them all!";
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        document.getElementById('winner-name-input').focus();
+    }
+
+    function claimCertificate() {
+        const name = document.getElementById('winner-name-input').value.trim();
+        if (name === "") { alert("Please enter a name first!"); return; }
+        
+        document.getElementById('final-cert-name').innerText = name;
+        document.getElementById('cert-date').innerText = new Date().toLocaleString();
+        
+        let desc = "";
+        if (currentLevel === 1) desc = "Addition & Subtraction (Sum \u2264 20)";
+        else if (currentLevel === 2) desc = "Multiplication & Division (Factors \u2264 12)";
+        else desc = "Mixed Operations (Add/Sub/Mult/Div)";
+
+        document.getElementById('cert-game-name').innerText = "Nugget's Fact Families";
+        document.getElementById('cert-level-desc').innerText = desc;
+        
+        const info = document.getElementById('cert-extra-info');
+        if (currentMode === 'memory') {
+            info.innerText = `Total Attempts: ${attempts}`;
+        } else {
+            const diff = Math.floor((mode1EndTime - mode1StartTime) / 1000);
+            info.innerText = `Time Taken: ${Math.floor(diff / 60)}m ${diff % 60}s`;
+        }
+        document.getElementById('modal-overlay').classList.add('hidden');
+        document.getElementById('board').classList.add('hidden');
+        document.getElementById('game-controls').classList.add('hidden');
+        document.getElementById('certificate-view').classList.remove('hidden');
+        document.getElementById('cert-buttons-container').classList.remove('hidden');
+        document.getElementById('nugget-speech').innerText = "Congratulations! You can print your certificate now.";
+    }
+
+    // --- Teacher Printing ---
+    function printCardSet() {
+        const container = document.getElementById('print-layout');
+        container.innerHTML = '';
+        const p1 = document.createElement('div'); p1.className = 'print-page';
+        const p2 = document.createElement('div'); p2.className = 'print-page';
+        
+        const result = generateRandomDeck(8); 
+        const printDeck = result.deck.sort(() => 0.5 - Math.random());
+
+        printDeck.forEach(data => {
+            const wrapF = document.createElement('div'); wrapF.className = 'print-card';
+            const f = document.createElement('div'); f.className = 'card-face card-front';
+            f.appendChild(generateCardContent(data)); wrapF.appendChild(f); p1.appendChild(wrapF);
+            
+            const wrapB = document.createElement('div'); wrapB.className = 'print-card';
+            const b = document.createElement('div'); b.className = 'card-face card-back';
+            b.innerHTML = `<img src="Nugget.png">`; wrapB.appendChild(b); p2.appendChild(wrapB);
+        });
+        container.appendChild(p1); container.appendChild(p2);
+        container.classList.add('visible-print');
+        window.print();
+        setTimeout(() => container.classList.remove('visible-print'), 1000);
+    }
+</script>
+</body>
+</html>
